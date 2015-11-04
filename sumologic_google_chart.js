@@ -1,4 +1,4 @@
-function result_to_head(result) {
+function sl_to_head(result) {
 	var dataHead = Object.keys(result[0]);
 	dataHead.sort(function(a, b) {
 		if (a === '_timeslice') {
@@ -18,11 +18,11 @@ function result_to_head(result) {
 	return dataHead;
 }
 
-function result_to_DataTable(result,dataHead) {
+function sl_to_DataTable(result,dataHead) {
 	var rxNumber = /^\d+\.\d+$/;
 	var data = new google.visualization.DataTable();
 
-	dataHead = dataHead || result_to_head(result);
+	dataHead = dataHead || sl_to_head(result);
 
 	dataHead.forEach(function(f) {
 		if (f == '_timeslice') {
@@ -57,7 +57,7 @@ function result_to_DataTable(result,dataHead) {
 	return data;
 }
 
-function result_to_csv(result) {
+function sl_to_csv(result) {
 	if (result.length < 1) {
 		return '';
 	}
@@ -98,7 +98,7 @@ function result_to_csv(result) {
 	return data.join('');
 }
 
-function result_to_html_table(result) {
+function sl_to_html_table(result) {
 	if (result.length < 1) {
 		return 'No Data';
 	}

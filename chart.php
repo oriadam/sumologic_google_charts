@@ -36,14 +36,13 @@ if (!empty($GLOBALS['q'])) {
 			}
 
 			var chartType = "<?=$_GET['chartType']?>";
-			var dataHead = result_to_head(result);
-			var data=result_to_DataTable(result,dataHead);
-			if (""===chartType&&dataHead.length>20){
+			var dataHead = sl_to_head(result);
+			var data = sl_to_DataTable(result,dataHead);
+			if ("" === chartType && dataHead.length > 20) {
 				chartType = 'PieChart';
 			}else if (dataHead[0]==='_timeslice'){
 				chartType = 'LineChart';
 					}
-
 
 			var options = <?=$_GET['options'] ?: '{}'?>;
 			options.crosshair = { trigger: "both", focused: { color: '#f88' } };
@@ -120,7 +119,7 @@ if ($publisher_status == DEMO_STATUS) {
 print "result=" . json_encode($result, JSON_PRETTY_PRINT) . ';';
 ?>
 
-	$('#csv_data').val(result_to_csv(result));
+	$('#csv_data').val(sl_to_csv(result));
 
 	$('#output_raw').html(JSON.stringify(result));
 	if (result.error){
