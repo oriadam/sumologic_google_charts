@@ -58,10 +58,8 @@
 </div>
 
 <h3 onclick="$('#q_container').slideToggle()">Query</h3>
-<!-- Link to Sumologic webpage -->
-<a href="https://service.sumologic.com/ui/index.html" target="_blank">https://service.sumologic.com/ui/index.html</a>
-
-<!-- Defined ready-to-use queries -->
+<a href="https://service.sumologic.com/ui/index.html" target="_blank">Login to Sumologic</a>
+<a href="https://nite-www.sumologic.net/help/Search_Examples_Cheat_Sheet.htm" target="_blank">Query Cheat Sheet</a>
 <datalist id="queries_datalist">
 </datalist>
 
@@ -73,7 +71,6 @@
 		<span class="btn btn-xs" onclick="$('#more').toggle()">more</span>
 		<div id="more" style="display:none">
 			<label class="form-group"><span>End Date: </span><input class="form-control" name="to" type="date" value=""></label>
-			<label class="form-group"><span>Interval: </span><select class="form-control" name="timeslice"><option><option>1d<option>1h<option>1m</select></label>
 			<label class="form-group"><span>Show Query: </span><input class="form-control" name="show_query" type="checkbox" value="1"></label>
 			<label class="form-group"><span>Show Request: </span><input class="form-control" name="show_ch" type="checkbox" value="1"></label>
 			<label class="form-group"><span>Show Response: </span><input class="form-control" name="show_raw" type="checkbox" value="1"></label>
@@ -97,13 +94,6 @@
 		opt.prop('value',q);
 		$queries_datalist.append(opt);
 	});
-
-	$('#rules_rules').prop('placeholder',"1234\n1234a\n1234b");
-
-	$('[name="q"]').on('change keyup click', function() {
-		var disabled=/timeslice/.test($(this).val());
-		$('[name="timeslice"]').prop('disabled', disabled).toggleClass('disabled',disabled);
-	})
 
 	function allOffExcept(elem){
 		$('#queryBuilder .query-selector input[type="checkbox"]:checked').not(elem).prop('checked',false);

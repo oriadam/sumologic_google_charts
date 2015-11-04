@@ -22,10 +22,7 @@ if (!empty($GLOBALS['q'])) {
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
 	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
 	<link href="/static/css/overall.css?v=15" rel="stylesheet" />
-
-	<!-- D3 looks good in theory, but Google Charts is much easier to implement -->
-	<!--script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script-->
-
+	<script type="text/javascript" src="sumologic_google_chart.js"></script>
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/javascript">
 		google.load("visualization", "1", {packages: ["corechart"]});
@@ -33,58 +30,19 @@ if (!empty($GLOBALS['q'])) {
 
 		//google.setOnLoadCallback(drawChart); // when data is loaded, this will be already loaded as well
 		function populateChart(element, result) {
-			var rxNumber = /^\d+\.\d+$/;
-			var chartType = "<?=$_GET['chartType']?>";
-			var data = new google.visualization.DataTable();
 			if (!result.length) {
-				$('#output_chart').html('NO DATA');
+				$('#output_chart').html('No data.');
 				return;
 			}
-			var dataHead = Object.keys(result[0]);
-			dataHead.sort(function (a, b) {
-				if (a==='_timeslice'){
-					return -1;
-				}
-				if (b==='_timeslice'){
-					return 1;
-				}
-				return a<b?-1:1;
-			});
-			dataHead.forEach(function(f) {
-				if (f == '_timeslice') {
-					data.addColumn('datetime', f);
-					if (""===chartType)
-						chartType = 'LineChart';
-				} else if (f == '_sum' || f=='_count') {
-					data.addColumn('number', f);
-				} else {
-					var v = result[0][f];
-					var type = 'string'
-					if (v.length === 13 && /^14\d+$/.test(v)) {
-						type = 'datetime';
-					} else if (result.length > 1 && rxNumber.test(v) && rxNumber.test(result[1][f])) {
-						type = 'number';
-					}
-					data.addColumn(type, f);
-				}
-			});
+
+			var chartType = "<?=$_GET['chartType']?>";
+			var dataHead = result_to_head(result);
+			var data=result_to_DataTable(result,dataHead);
 			if (""===chartType&&dataHead.length>20){
 				chartType = 'PieChart';
-			}
-			result.forEach(function(r) {
-				var row = [];
-				dataHead.forEach(function(f,i) {
-					var type = data.getColumnType(i);
-					if (/date/.test(type)){
-						row.push(new Date(+r[f]));
-					} else if ('number' == type) {
-						row.push(+r[f]);
-					} else {
-						row.push(r[f].toString());
+			}else if (dataHead[0]==='_timeslice'){
+				chartType = 'LineChart';
 					}
-				});
-				data.addRow(row);
-			});
 
 
 			var options = <?=$_GET['options'] ?: '{}'?>;
@@ -173,69 +131,8 @@ print "result=" . json_encode($result, JSON_PRETTY_PRINT) . ';';
 	$('#wait').remove();
 	$('body').attr('onload',null)
 
-	function result_to_csv(result){
-		if (result.length<1){
-			return '';
-		}
-		var data=[];
-		var endline="\n";
-		var sep=",";
-		var dataHead = Object.keys(result[0]);
-		dataHead.sort(function (a, b) {
-			if (a==='_timeslice'){
-				return -1;
-			}
-			if (b==='_timeslice'){
-				return 1;
-			}
-			return a<b?-1:1;
-		});
-		dataHead.forEach(function(f) {
-			if (f == '_timeslice') {
-				data.push('date',sep);
-			} else if (f == '_sum' || f=='_count') {
-				data.push('sum',sep);
-			} else {
-				data.push(f,sep);
-			}
-		});
-		data.push(endline);
-		result.forEach(function(r) {
-			dataHead.forEach(function(f) {
-				if (r[f].length === 13 && /^14\d+$/.test(r[f])) {
-					var d=new Date(+r[f]);
-					data.push(d.toISOString().substr(0,10),sep);
-				} else {
-					data.push(r[f],sep);
-				}
-			});
-			data.push(endline);
-		});
-		return data.join('');
-	}
 
 	</script>
 </body>
 
 </html>
-<?php
-
-function generate_demo_stats($q, $from, $to, $options) {
-	$arr = [];
-	$fromtime = from_to_time($from);
-	$totime = from_to_time($to ?: 'now');
-	$delta = 24 * 60 * 60; // 1d
-	if ($fromtime >= $totime - $delta) { // 24h ago
-		$delta = 60 * 60; // 1h
-	}
-	print "from='$from'; fromtime=$fromtime; to='$to'; totime='$totime'; delta=$delta;";
-	$i = 0;
-	for ($time = $fromtime; $time <= $totime; $time += $delta) {
-		$i++;
-		$arr[] = [
-			'_timeslice' => $time * 1000,
-			'_sum' => 5000 + mt_rand($i * 200, 2000 + $i * 200),
-		];
-	}
-	return $arr;
-}

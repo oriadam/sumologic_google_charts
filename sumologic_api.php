@@ -146,3 +146,23 @@ function from_to_time($from) {
 	}
 	return $fromtime;
 }
+
+function generate_demo_stats($q, $from, $to, $options) {
+	$arr = [];
+	$fromtime = from_to_time($from);
+	$totime = from_to_time($to ?: 'now');
+	$delta = 24 * 60 * 60; // 1d
+	if ($fromtime >= $totime - $delta) { // 24h ago
+		$delta = 60 * 60; // 1h
+	}
+	print "from='$from'; fromtime=$fromtime; to='$to'; totime='$totime'; delta=$delta;";
+	$i = 0;
+	for ($time = $fromtime; $time <= $totime; $time += $delta) {
+		$i++;
+		$arr[] = [
+			'_timeslice' => $time * 1000,
+			'_sum' => 5000 + mt_rand($i * 200, 2000 + $i * 200),
+		];
+	}
+	return $arr;
+}
