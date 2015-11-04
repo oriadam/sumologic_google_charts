@@ -29,14 +29,14 @@ if (!empty($GLOBALS['q'])) {
 	    //google.load("visualization", "1.1", {packages: ["line"]});
 
 		//google.setOnLoadCallback(drawChart); // when data is loaded, this will be already loaded as well
-		function populateChart(element, result) {
+		function populateChart(element, result, dataHead) {
 			if (!result.length) {
 				$('#output_chart').html('No data.');
 				return;
 			}
 
 			var chartType = "<?=$_GET['chartType']?>";
-			var dataHead = sl_to_head(result);
+			dataHead = dataHead || sl_to_head(result);
 			var data = sl_to_DataTable(result,dataHead);
 			if ("" === chartType && dataHead.length > 20) {
 				chartType = 'PieChart';
@@ -90,7 +90,11 @@ if (!empty($GLOBALS['q'])) {
 	<div id="wait">
 		<i class="wait_spinner"></i> Loading chart...
 	</div>
+	<!-- CHART -->
 	<div id="output_chart"></div>
+	<!-- TABLE -->
+	<div id="table_data"></div>
+	<!-- CSV -->
 	<form id="csv_form" action="csv.php?filename=report <?=date('Y-m-d', from_to_time($_GET['from']))?> to <?=date('Y-m-d', from_to_time($_GET['to'] ?: 'now'))?>.csv" method="POST" target="_blank">
 	<input id="csv_data" type="hidden" name="data">
 	<input type="submit" class="btn btn-link" value="Download CSV"/>
@@ -99,7 +103,7 @@ if (!empty($GLOBALS['q'])) {
 if (!empty($_GET['show_raw'])) {
 	?>
 	<span onclick="$('#output_raw').toggle()">Show raw response</span>
-	<span id="output_raw" style="display:none"></span>
+	<div id="output_raw" style="display:none"></div>
 <?php }
 ?>
 	<script>
@@ -118,14 +122,16 @@ if ($publisher_status == DEMO_STATUS) {
 }
 print "result=" . json_encode($result, JSON_PRETTY_PRINT) . ';';
 ?>
+	var dataHead = sl_to_head(result);
 
-	$('#csv_data').val(sl_to_csv(result));
+	$('#table_data').html(sl_to_html_table(result,dataHead));
+	$('#csv_data').val(sl_to_csv(result,dataHead));
 
 	$('#output_raw').html(JSON.stringify(result));
 	if (result.error){
 		$('#output_chart').html('ERROR:'+result.error);
 	}else {
-		populateChart(document.querySelector('#output_chart'),result);
+		populateChart(document.querySelector('#output_chart'),result,dataHead);
 	}
 	$('#wait').remove();
 	$('body').attr('onload',null)

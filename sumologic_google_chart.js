@@ -57,23 +57,14 @@ function sl_to_DataTable(result,dataHead) {
 	return data;
 }
 
-function sl_to_csv(result) {
+function sl_to_csv(result,dataHead) {
 	if (result.length < 1) {
 		return '';
 	}
 	var data = [];
 	var endline = "\n";
 	var sep = ",";
-	var dataHead = Object.keys(result[0]);
-	dataHead.sort(function(a, b) {
-		if (a === '_timeslice') {
-			return -1;
-		}
-		if (b === '_timeslice') {
-			return 1;
-		}
-		return a < b ? -1 : 1;
-	});
+	dataHead = dataHead || sl_to_head(result);
 	dataHead.forEach(function(f) {
 		if (f == '_timeslice') {
 			data.push('date', sep);
@@ -98,43 +89,38 @@ function sl_to_csv(result) {
 	return data.join('');
 }
 
-function sl_to_html_table(result) {
+function sl_to_html_table(result,dataHead) {
 	if (result.length < 1) {
 		return 'No Data';
 	}
-	var data = [];
-	var endline = "\n";
-	var sep = ",";
-	var dataHead = Object.keys(result[0]);
-	dataHead.sort(function(a, b) {
-		if (a === '_timeslice') {
-			return -1;
-		}
-		if (b === '_timeslice') {
-			return 1;
-		}
-		return a < b ? -1 : 1;
-	});
+	var data = ['<table class="table"><thead><tr>'];
+	dataHead = dataHead || sl_to_head(result);
 	dataHead.forEach(function(f) {
+		data.push('<th>');
 		if (f == '_timeslice') {
-			data.push('date', sep);
+			data.push('date');
 		} else if (f == '_sum' || f == '_count') {
-			data.push('sum', sep);
+			data.push('sum');
 		} else {
-			data.push(f, sep);
+			data.push(f);
 		}
+		data.push('</th>');
 	});
-	data.push(endline);
+	data.push('</tr></thead><tbody>');
 	result.forEach(function(r) {
+		data.push('<tr>');
 		dataHead.forEach(function(f) {
+			data.push('<td>');
 			if (r[f].length === 13 && /^14\d+$/.test(r[f])) {
 				var d = new Date(+r[f]);
-				data.push(d.toISOString().substr(0, 10), sep);
+				data.push(d.toISOString().substr(0, 10));
 			} else {
-				data.push(r[f], sep);
+				data.push(r[f]);
 			}
+			data.push('</td>');
 		});
-		data.push(endline);
+		data.push('</tr>');
 	});
+	data.push('</tbody></table>');
 	return data.join('');
 }
