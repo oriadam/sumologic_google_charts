@@ -1,0 +1,181 @@
+<html>
+<head>
+	<script>
+		// Set your online tracker URL here:
+		var TRACKER_URL = 'https://endpoint1.collection.eu.sumologic.com/receiver/v1/http/GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH?';
+		// Set your predefined queries here:
+		var PREDEFINED_QUERIES = [
+			'_collector=......',
+			'_collector=.......',
+		];
+	</script>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/1.1.1/js/md5.min.js"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" integrity="sha256-MfvZlkHCEqatNoGiOXveE8FIwMzZg4W85qfrfIFBfYc= sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha256-Sk3nkD6mLTMOF0EOpNtsIry+s1CsaqQC1rVLTAy+0yc= sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
+	<link href="style.css" rel="stylesheet">
+	<style>
+	iframe[name="result"] {
+		width:90%;
+		height:300px;
+		border:1px solid #ddd;
+	}
+	input[name="q"] {
+		width:1000px;
+	}
+	#queryBuilder .sub-group{
+		padding-left:20px;
+	}
+	#rules_rules {
+		height: 100px;
+		vertical-align: top;
+	}
+	[onclick] {
+		cursor: pointer;
+	}
+	body {padding:0px 20px;}
+	.firstgeo {
+		font-weight: bold;
+		text-transform: uppercase;
+	}
+	#cp_container table,#cp_container td,#cp_container th {
+		font-size:12px;
+		line-height:12px;
+	}
+	#cp_container td:nth-child(3) {
+		font-family:monospace;
+	}
+	</style>
+</head>
+<body>
+<h3 onclick="$('#cp_container').slideToggle()">Create A Tracker</h3>
+<div id="cp_container" style="display:none">
+	<label class="form-group"><span>Tracker name: </span><input id="cp_name" class="form-control" maxlength="10" pattern="^[a-z0-9]+$"> <small>Use short, simple name. No signs, only lowercased abc.</small></label>
+	<label class="form-group"><span>Comma Separated Geos: </span><input id="cp_geos" class="form-control" pattern="^(\b[a-zA-Z][a-zA-Z],?){0,}$" placeholder="us,uk,..."></label>
+	<div id="cp_out">
+	</div>
+</div>
+
+<h3 onclick="$('#q_container').slideToggle()">Query</h3>
+<!-- Link to Sumologic webpage -->
+<a href="https://service.sumologic.com/ui/index.html" target="_blank">https://service.sumologic.com/ui/index.html</a>
+
+<!-- Defined ready-to-use queries -->
+<datalist id="queries_datalist">
+</datalist>
+
+<div id="q_container" style="display:none">
+	<form action='./chart.php' method="get" target="result">
+		<label class="form-group"><span>Start Date: </span><input class="form-control" name="from" type="date"></label>
+		<label class="form-group"><span>Query: </span><input class="form-control" name="q" maxlength="2000" list="queries_datalist"></label>
+		<label class="form-group"><span>Chart: </span><input class="form-control" type="checkbox" checked onchange="this.form.action=this.checked?'./chart.php':'./api.php'"></label>
+		<span class="btn btn-xs" onclick="$('#more').toggle()">more</span>
+		<div id="more" style="display:none">
+			<label class="form-group"><span>End Date: </span><input class="form-control" name="to" type="date" value=""></label>
+			<label class="form-group"><span>Interval: </span><select class="form-control" name="timeslice"><option><option>1d<option>1h<option>1m</select></label>
+			<label class="form-group"><span>Show Query: </span><input class="form-control" name="show_query" type="checkbox" value="1"></label>
+			<label class="form-group"><span>Show Request: </span><input class="form-control" name="show_ch" type="checkbox" value="1"></label>
+			<label class="form-group"><span>Show Response: </span><input class="form-control" name="show_raw" type="checkbox" value="1"></label>
+		</div>
+		<!--label class="form-group"><span>Secret: </span><input class="form-control" name="secret" value=""></label-->
+		<input type="hidden" name="secret">
+		<br>
+		<label class="form-group submit"><input class="form-control" type="submit"></label>
+	</form>
+
+	<h4>Query Result</h4>
+	<iframe name="result"></iframe>
+</div>
+
+
+<script src="populate_form_from_search_query.js"></script>
+<script>
+	var $queries_datalist=$('#queries_datalist');
+	PREDEFINED_QUERIES.forEach(function(q){
+		var opt=$('<option>');
+		opt.prop('value',q);
+		$queries_datalist.append(opt);
+	});
+
+	$('#rules_rules').prop('placeholder',"1234\n1234a\n1234b");
+
+	$('[name="q"]').on('change keyup click', function() {
+		var disabled=/timeslice/.test($(this).val());
+		$('[name="timeslice"]').prop('disabled', disabled).toggleClass('disabled',disabled);
+	})
+
+	function allOffExcept(elem){
+		$('#queryBuilder .query-selector input[type="checkbox"]:checked').not(elem).prop('checked',false);
+	}
+
+	function rulesRulez(elem){
+		if (elem)
+			allOffExcept(elem);
+		var rules=[];
+		$('#rules_rules').val().split(/\s*\n\s*/).forEach(function(rule_id,i){
+			rules.push('"&a='+rule_id + '&"');
+			if (/\d$/.test(rule_id)){ // has no a nor b
+				rules.push('"&a='+rule_id + 'a&"');
+			}
+		});
+		var q = '_collector=ti " ' + $('#rules_type').val() + '&" AND (' + rules.join(' OR ')+') | timeslice by 1d | parse "&x=*&" as samplerate | sum(samplerate) by _timeslice | sort by _timeslice';
+		$('[name="q"]').val(q);
+	};
+
+	$('[id^="rules_"]').on('click change keyup',function(){
+		if ($('#select_rules:checked').length){
+			rulesRulez();
+		}
+	});
+
+	$('input[id^="cp_"]').on('click change keyup',function(){
+		var sep='-';
+		var url = TRACKER_URL;
+		var types={
+			'imp':'Impression',
+			'clk':'Click',
+			'cnv':'Conversion',
+		};
+		var name=$('#cp_name').val().toLowerCase().replace(/[^a-zA-Z\d]/g,'');
+		if (!name){
+			$('#cp_out').html('');
+			return;
+		}
+		if (name!=$('#cp_name').val()){
+			$('#cp_name').val(name);
+		}
+
+		var samplerate=1;
+		var geos=$('#cp_geos').val();
+		geos=geos.toLowerCase().replace(/^[\s,]*|[\s,]*$|\s/g,'').split(/[\s,]+/).filter(function(v) {return v!=''});
+		// validate all geos
+		var i;
+		$('#cp_geos').removeClass('error');
+		for (i=0;i<geos.length;i++){
+			if (!/^[a-z][a-z]$/.test(geos[i])){
+				$('#cp_geos').addClass('error');
+				$('#cp_out').html('Geos Error');
+				return;
+			}
+		}
+		if (geos.length==0){
+			geos=[''];
+		}
+		var output = '<table class="table"><thead><th>Geo</th><th>Type</th><th>URL</th></thead><tbody>';
+		geos.forEach(function(geo){
+			var first=1
+			Object.keys(types).forEach(function(type){
+				output += '<tr><td'+(first?' class="firstgeo">'+geo:'>')+'</td><td>'+types[type]+'</td><td>'+url+sep+samplerate+sep+name+sep+type+sep+geo+sep+'</td></tr>';
+				first=0
+			})
+		})
+		output +='</tbody></table>';
+
+		$('#cp_out').html(output);
+	});
+
+</script>
+
+</body>
+</html>

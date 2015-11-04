@@ -1,0 +1,23 @@
+body {
+	padding: 10px;
+}
+
+label {
+	display: block;
+}
+
+.form-group>span:first-child{
+	width: 150px;
+	display: inline-block;
+	font-weight: bold;
+}
+
+.form-control {
+	display: inline-block;
+	width: 300px;
+}
+
+.form-group.submit,
+.form-group.submit input[type="submit"] {
+	width: 450px;
+}
