@@ -1,3 +1,7 @@
+////////////////////////////////////////////////////////////
+// See https://github.com/oriadam/sumologic_google_charts //
+////////////////////////////////////////////////////////////
+
 function sl_to_head(result) {
 	var dataHead = Object.keys(result[0]);
 	dataHead.sort(function(a, b) {
@@ -18,8 +22,24 @@ function sl_to_head(result) {
 	return dataHead;
 }
 
+function sl_detect_type(result,field){
+	var rxNumber = /^(\d+\.\d+|)$/;
+	var rxDate = /^14\d{11}$/;
+	var t='datetime';
+	var i;
+	for (i=0;i<result.length;i++){
+		var v=result[i][field];
+		if (t=='datetime'&&!rxDate.test(v)){
+			t='number';
+		}
+		if (t=='number'&&!rxNumber.test(v)){
+			return 'string';
+		}
+	}
+	return t;
+}
+
 function sl_to_DataTable(result,dataHead) {
-	var rxNumber = /^\d+\.\d+$/;
 	var data = new google.visualization.DataTable();
 
 	dataHead = dataHead || sl_to_head(result);
@@ -30,14 +50,7 @@ function sl_to_DataTable(result,dataHead) {
 		} else if (f == '_sum' || f == '_count') {
 			data.addColumn('number', f);
 		} else {
-			var v = result[0][f];
-			var type = 'string'
-			if (v.length === 13 && /^14\d+$/.test(v)) {
-				type = 'datetime';
-			} else if (rxNumber.test(v)) {
-				type = 'number';
-			}
-			data.addColumn(type, f);
+			data.addColumn(sl_detect_type(result,f), f);
 		}
 	});
 	result.forEach(function(r) {
@@ -47,9 +60,9 @@ function sl_to_DataTable(result,dataHead) {
 			if (/date/.test(type)) {
 				row.push(new Date(+r[f]));
 			} else if ('number' == type) {
-				row.push(+r[f]);
+				row.push(+r[f]||0);
 			} else {
-				row.push(r[f].toString());
+				row.push(''+r[f]);
 			}
 		});
 		data.addRow(row);
