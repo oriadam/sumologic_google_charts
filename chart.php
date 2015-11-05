@@ -1,4 +1,7 @@
 <?php
+////////////////////////////////////////////////////////////
+// See https://github.com/oriadam/sumologic_google_charts //
+////////////////////////////////////////////////////////////
 error_reporting(E_ERROR | E_WARNING | E_PARSE);
 require_once "sumologic_api.php";
 if (!empty($GLOBALS['q'])) {
@@ -21,7 +24,7 @@ if (!empty($GLOBALS['q'])) {
 	<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
 	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
-	<link href="/static/css/overall.css?v=15" rel="stylesheet" />
+	<link href="style.css" rel="stylesheet" />
 	<script type="text/javascript" src="sumologic_google_chart.js"></script>
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/javascript">
@@ -42,7 +45,7 @@ if (!empty($GLOBALS['q'])) {
 				chartType = 'PieChart';
 			}else if (dataHead[0]==='_timeslice'){
 				chartType = 'LineChart';
-					}
+			}
 
 			var options = <?=$_GET['options'] ?: '{}'?>;
 			options.crosshair = { trigger: "both", focused: { color: '#f88' } };
@@ -99,6 +102,11 @@ if (!empty($GLOBALS['q'])) {
 	<input id="csv_data" type="hidden" name="data">
 	<input type="submit" class="btn btn-link" value="Download CSV"/>
 	</form>
+
+	<!-- Query
+	<?=$q?>
+	-->
+
 <?php
 if (!empty($_GET['show_raw'])) {
 	?>
@@ -115,6 +123,9 @@ foreach ($avail_options as $k) {
 		$options[$k] = $_GET[$k];
 	}
 }
+if (time() - from_to_time($_GET['from']) <= 24 * 60 * 60) {
+	$q = str_replace('timeslice 1d', 'timeslice 1h', $q);
+}
 if ($publisher_status == DEMO_STATUS) {
 	$result = generate_demo_stats($q, $_GET['from'], $_GET['to'] ?: 0, $options);
 } else {
@@ -122,16 +133,17 @@ if ($publisher_status == DEMO_STATUS) {
 }
 print "result=" . json_encode($result, JSON_PRETTY_PRINT) . ';';
 ?>
-	var dataHead = sl_to_head(result);
-
-	$('#table_data').html(sl_to_html_table(result,dataHead));
-	$('#csv_data').val(sl_to_csv(result,dataHead));
-
 	$('#output_raw').html(JSON.stringify(result));
 	if (result.error){
 		$('#output_chart').html('ERROR:'+result.error);
+		$('#output_chart').html($('#output_chart').html());
+	} else if (!result.length) {
+		$('#output_chart').html('Empty result.');
 	}else {
+		var dataHead = sl_to_head(result);
 		populateChart(document.querySelector('#output_chart'),result,dataHead);
+		$('#table_data').html(sl_to_html_table(result,dataHead));
+		$('#csv_data').val(sl_to_csv(result,dataHead));
 	}
 	$('#wait').remove();
 	$('body').attr('onload',null)
