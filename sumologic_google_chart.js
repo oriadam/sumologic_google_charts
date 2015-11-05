@@ -23,7 +23,7 @@ function sl_to_head(result) {
 }
 
 function sl_detect_type(result,field){
-	var rxNumber = /^(\d+\.\d+|)$/;
+	var rxNumber = /^(\d+(\.\d+)?|)$/;
 	var rxDate = /^14\d{11}$/;
 	var t='datetime';
 	var i;
