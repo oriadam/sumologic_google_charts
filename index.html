@@ -1,6 +1,10 @@
 <html>
 <head>
 	<script>
+		////////////////////////////////////////////////////////////
+		// See https://github.com/oriadam/sumologic_google_charts //
+		////////////////////////////////////////////////////////////
+
 		// Set your online tracker URL here:
 		var TRACKER_URL = 'https://endpoint1.collection.eu.sumologic.com/receiver/v1/http/GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH-GIBBERISH?';
 		// Set your predefined queries here:
@@ -58,7 +62,8 @@
 </div>
 
 <h3 onclick="$('#q_container').slideToggle()">Query</h3>
-<a href="https://service.sumologic.com/ui/index.html" target="_blank">Login to Sumologic</a>
+<a href="https://service.eu.sumologic.com/ui/index.html" target="_blank">Login to Sumologic</a>
+<a href="https://service.sumologic.com/help/Getting_Started_Using_Search.htm" target="_blank">Query Starter Guide</a>
 <a href="https://nite-www.sumologic.net/help/Search_Examples_Cheat_Sheet.htm" target="_blank">Query Cheat Sheet</a>
 <datalist id="queries_datalist">
 </datalist>
@@ -165,6 +170,13 @@
 		$('#cp_out').html(output);
 	});
 
+	function resize(){
+		var $iframe=$('iframe[name="result"]');
+		$iframe.height(innerHeight - $iframe.position().top - 20)
+	}
+	resize();
+	$(window).on('resize',resize);
+	$('[onclick]').click(resize);
 </script>
 
 </body>
