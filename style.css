@@ -16,6 +16,13 @@ label {
 	display: inline-block;
 	width: 300px;
 }
+.form-control.boxlabel {
+	display: inline-block;
+	width: 150px;
+}
+.boxlabel input {
+	vertical-align: top;
+}
 
 .form-group.submit,
 .form-group.submit input[type="submit"] {

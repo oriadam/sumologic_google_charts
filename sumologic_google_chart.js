@@ -2,67 +2,70 @@
 // See https://github.com/oriadam/sumologic_google_charts //
 ////////////////////////////////////////////////////////////
 
-function sl_to_head(result) {
-	var dataHead = Object.keys(result[0]);
-	dataHead.sort(function(a, b) {
-		if (a === '_timeslice') {
-			return -1;
-		}
-		if (b === '_timeslice') {
-			return 1;
-		}
-		if (a === 'type') {
-			return -1;
-		}
-		if (b === 'type') {
-			return 1;
-		}
-		return 0; // --> otherwise keep the same order: a < b ? -1 : 1;
+/**************************************************
+
+First, run this:
+   sl_prepare(result);
+
+To get HTML string of a table:
+   var html = sl_to_html_table(result);
+
+To get CSV string:
+   var csv_string = sl_to_csv(result);
+
+To get Google Charts compatible data:
+   var data = sl_to_DataTable(result);
+
+**************************************************/
+
+function sl_prepare(result) {
+
+	result.dataTypes = [];
+	result.head.forEach(function(field, idx) {
+		result.dataTypes.push(sl_detect_type(result, field, idx));
 	});
-	return dataHead;
 }
 
-function sl_detect_type(result,field){
+function sl_detect_type(result, field, idx) {
+	if (field == '_timeslice') {
+		return 'datetime';
+	} else if (field == '_sum' || field == '_count') {
+		return 'number';
+	}
+
 	var rxNumber = /^(\d+(\.\d+)?|)$/;
 	var rxDate = /^14\d{11}$/;
-	var t='datetime';
+	var t = 'datetime';
 	var i;
-	for (i=0;i<result.length;i++){
-		var v=result[i][field];
-		if (t=='datetime'&&!rxDate.test(v)){
-			t='number';
+	for (i = 0; i < result.rows.length; i++) {
+		var v = result.rows[i][idx];
+		if (t == 'datetime' && !rxDate.test(v)) {
+			t = 'number';
 		}
-		if (t=='number'&&!rxNumber.test(v)){
+		if (t == 'number' && !rxNumber.test(v)) {
 			return 'string';
 		}
 	}
 	return t;
 }
 
-function sl_to_DataTable(result,dataHead) {
+function sl_to_DataTable(result) {
 	var data = new google.visualization.DataTable();
 
-	dataHead = dataHead || sl_to_head(result);
-
-	dataHead.forEach(function(f) {
-		if (f == '_timeslice') {
-			data.addColumn('datetime', f);
-		} else if (f == '_sum' || f == '_count') {
-			data.addColumn('number', f);
-		} else {
-			data.addColumn(sl_detect_type(result,f), f);
-		}
+	result.head.forEach(function(f, i) {
+		data.addColumn(result.dataTypes[i], f);
 	});
-	result.forEach(function(r) {
+
+	result.rows.forEach(function(r) {
 		var row = [];
-		dataHead.forEach(function(f, i) {
-			var type = data.getColumnType(i);
+		result.head.forEach(function(f, i) {
+			var type = result.dataTypes[i];
 			if (/date/.test(type)) {
-				row.push(new Date(+r[f]));
+				row.push(new Date(+r[i]));
 			} else if ('number' == type) {
-				row.push(+r[f]||0);
+				row.push(+r[i] || 0);
 			} else {
-				row.push(''+r[f]);
+				row.push('' + r[i]);
 			}
 		});
 		data.addRow(row);
@@ -70,45 +73,40 @@ function sl_to_DataTable(result,dataHead) {
 	return data;
 }
 
-function sl_to_csv(result,dataHead) {
-	if (result.length < 1) {
-		return '';
-	}
-	var data = [];
+function sl_to_csv(result) {
 	var endline = "\n";
 	var sep = ",";
-	dataHead = dataHead || sl_to_head(result);
-	dataHead.forEach(function(f) {
-		if (f == '_timeslice') {
-			data.push('date', sep);
-		} else if (f == '_sum' || f == '_count') {
-			data.push('sum', sep);
-		} else {
-			data.push(f, sep);
-		}
-	});
-	data.push(endline);
-	result.forEach(function(r) {
-		dataHead.forEach(function(f) {
-			if (r[f].length === 13 && /^14\d+$/.test(r[f])) {
+	var output = [];
+
+	// header
+	output.push(result.head.join(sep)
+		.replace(/\b_timeslice\b/g, 'date')
+		.replace(/\b(_sum|_count)\b/g, 'sum')
+	);
+	output.push(endline);
+
+	// data
+	result.rows.forEach(function(r) {
+		result.head.forEach(function(f, i) {
+			if (r[i].length === 13 && /^14\d+$/.test(r[f])) {
 				var d = new Date(+r[f]);
-				data.push(d.toISOString().substr(0, 10), sep);
+				output.push(d.toISOString().substr(0, 10), sep);
 			} else {
-				data.push(r[f], sep);
+				output.push(r[f], sep);
 			}
 		});
-		data.push(endline);
+		output.push(endline);
 	});
-	return data.join('');
+	return output.join('');
 }
 
-function sl_to_html_table(result,dataHead) {
+function sl_to_html_table(result, summary) {
 	if (result.length < 1) {
 		return 'No Data';
 	}
+	var sum=[];
 	var data = ['<table class="table"><thead><tr>'];
-	dataHead = dataHead || sl_to_head(result);
-	dataHead.forEach(function(f) {
+	result.head.forEach(function(f) {
 		data.push('<th>');
 		if (f == '_timeslice') {
 			data.push('date');
@@ -118,22 +116,40 @@ function sl_to_html_table(result,dataHead) {
 			data.push(f);
 		}
 		data.push('</th>');
+		sum.push(0);
 	});
 	data.push('</tr></thead><tbody>');
-	result.forEach(function(r) {
+	result.rows.forEach(function(r) {
 		data.push('<tr>');
-		dataHead.forEach(function(f) {
+		result.head.forEach(function(f, i) {
 			data.push('<td>');
-			if (r[f].length === 13 && /^14\d+$/.test(r[f])) {
-				var d = new Date(+r[f]);
+			if (/date/.test(result.dataTypes[i])) {
+				var d = new Date(+r[i]);
 				data.push(d.toISOString().substr(0, 10));
 			} else {
-				data.push(r[f]);
+				data.push(r[i]);
+				if (typeof r[i]=='number'){
+					sum[i]+=r[i];
+				}
 			}
 			data.push('</td>');
 		});
 		data.push('</tr>');
 	});
-	data.push('</tbody></table>');
+	data.push('</tbody>');
+	if (summary){
+		data.push('<tbody>');
+		sum.forEach(function(s,i){
+			data.push('<td>');
+			if (!s&&!i){
+				data.push('Total');
+			}else if (s){
+				data.push(s);
+			}
+			data.push('</td>');
+		});
+		data.push('</tbody>');
+	}
+	data.push('</table>');
 	return data.join('');
 }

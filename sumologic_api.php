@@ -17,14 +17,27 @@ function sumologic_error($query = null, $error = null, $info = null, $status = n
 	];
 }
 
-function sumologic_api($query, $from, $to = 0, $options = []) {
-	$base_url = $options['endpoint'] ?: 'https://api.sumologic.com/api/v1'; // redirection
-	//$base_url = $options['endpoint'] ?: 'https://api.eu.sumologic.com/api/v1'; // skip the redirection
-	$base_url .= '/logs/search';
+//Run a query and immediately return a result JSON
+// Using the Search API as documented here: https://github.com/SumoLogic/sumo-api-doc/wiki/Search-API
+//	$query - The SL search query to execute
+//	$from,$to - Period to run query, format '2015-12-31'. Default for $to: 0 (now)
+//	$options:
+//		endpoint - Endpoint URL. Default: 'https://api.sumologic.com/api/v1'
+//		timeout - Seconds allowed to wait for query result. Default: 120
+//		tz - Time Zone. Default 'UTC'
+//		DataTable - return result in Google's DataTable format. Default: false
+//		format - Return object format. Available: json / text. Default: json
+//		ch_options - array of options for the CURL object
+//		url - Do not use. Overrides all options and use specified url to access the api
+//
+function sumologic_search_api($query, $from, $to = 0, $options = []) {
+	//$endpoint = $options['endpoint'] ?: 'https://api.sumologic.com/api/v1'; // will redirect
+	$endpoint = $options['endpoint'] ?: 'https://api.eu.sumologic.com/api/v1'; // skip the redirection
+	$query_url = '/logs/search';
 
 	$RATE_LIMIT_ERROR_CODE = 429;
-	$timeout = $options['timeout'] ?: 61;
-	$timeZone = $options['timeZone'] ?: $options['timezone'] ?: 'UTC';
+	$timeout = $options['timeout'] ?: 120;
+	$timeZone = $options['tz'] ?: $options['tz'] ?: 'UTC';
 	$totime;
 	if (!empty($to)) {
 		$totime = from_to_time($to);
@@ -38,30 +51,37 @@ function sumologic_api($query, $from, $to = 0, $options = []) {
 		$fromtime = date(DATE_ISO8601, $fromtime);
 	}
 
-	$parameters = [
-		'q' => $query,
-		'from' => $fromtime,
-	];
-	if (!empty($totime)) {
-		$parameters['to'] = $totime;
-	}
+	if (empty($options['url'])) {
+		$parameters = [
+			'q' => $query,
+			'from' => $fromtime,
+		];
+		if (!empty($totime)) {
+			$parameters['to'] = $totime;
+		}
 
-	if (!empty($timeZone)) {
-		$parameters['tz'] = $timeZone;
-	}
+		if (!empty($timeZone)) {
+			$parameters['tz'] = $timeZone;
+		}
 
-	if (!empty($options['format'])) {
-		$parameters['format'] = $options['format'];
-	}
+		if ($options['format'] == 'text') {
+			$parameters['format'] = $options['format'];
+		}
 
-	$url = $base_url . '?' . http_build_query($parameters);
-	if (!empty($options['url'])) {
+		$url = $endpoint . $query_url . '?' . http_build_query($parameters);
+	} else {
 		$url = $options['url'];
+		if (strpos($url, '//') === false) {
+			$url = $endpoint . $query_url . $url;
+		}
 	}
 
+	set_time_limit(30 + $timeout); // php time limit
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
+	curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
 	curl_setopt($ch, CURLOPT_HEADER, false);
 	curl_setopt($ch, CURLOPT_VERBOSE, false);
 	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
@@ -77,47 +97,99 @@ function sumologic_api($query, $from, $to = 0, $options = []) {
 		curl_setopt_array($ch, $options['ch_options']);
 	}
 
-	//curl_setopt($ch, CURLINFO_HEADER_OUT, true);
+	curl_setopt($ch, CURLINFO_HEADER_OUT, true); // for debugging
 
 	$response = curl_exec($ch);
 	$error = curl_error($ch);
 	$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$info = curl_getinfo($ch);
 	// remove password from debug info:
-	$info["request_header"] = preg_replace('@(Authorization:\s*Basic\s+)[\d\w=]+@', '$1****', $info["request_header"]);
+	//$info["request_header"] = preg_replace('@(Authorization:\s*Basic\s+)[\d\w=]+@', '$1****', $info["request_header"] ?: 'undefined');
 	curl_close($ch);
 
 	if ($status == 301 || $status == 302) {
 		$options['url'] = $info['redirect_url'];
-		return sumologic_api($query, $from, $to, $options);
+		return sumologic_search_api($query, $from, $to, $options);
 	}
 
 	if (empty($response) || $status != 200) {
 		return sumologic_error($query, $error ?: preg_replace('@[ \t]+@', ' ', preg_replace('@\s*\n+\s*@', "\n", strip_tags($response))) ?: 'empty response', $info, $status);
 	}
 
-	$json = json_decode($response);
+	$json = json_decode($response, true);
 	$error = json_last_error();
 	if ($error != JSON_ERROR_NONE) {
 		return sumologic_error($query, 'JSON parse error ' . $error, $info, $status);
 	}
 
 	if (@$json['status'] === $RATE_LIMIT_ERROR_CODE) {
-		// rate limit? seamlessly wait and try again
-		sleep(1);
-		return sumologic_api($query, $from, $to, $options);
+		// rate limit? seamlessly wait a sec and try again
+		sleep(0.1);
+		return sumologic_search_api($query, $from, $to, $options);
 	}
+
+	// foreach ($json as $row) {
+	// 	foreach ($row as $k => $v) {
+	// 		if ($k == '_timeslice' || $k == '_sum' || $k == '_count') {
+	// 			$row[$k] = 1 * $v;
+	// 		}
+	// 	}
+	// }
+	$result = [];
 	if (!empty($options['show_query'])) {
-		$json['query'] = $query;
+		$result['query'] = $query;
 	}
 	if (!empty($options['show_raw'])) {
-		$json['raw'] = $response;
+		$result['raw'] = $response;
 	}
 	if (!empty($options['show_ch'])) {
-		$json['ch'] = $info;
-		$json['ch_status'] = $status;
+		$result['ch'] = $info;
+		$result['ch_status'] = $status;
 	}
-	return $json;
+
+	$result['rows'] = array();
+	if (!empty($json[0])) {
+		$result['head'] = array();
+		foreach ($json[0] as $name => $row) {
+			$result['head'][] = $name;
+		}
+		if (empty(preg_match('@\\|\\s*fields\\b@', $query))) {
+			usort($result['head'], 'sumo_helper_key_cmp');
+		}
+
+		foreach ($json as $i => $row) {
+			if (is_numeric($i)) {
+				$r = [];
+				if ($options['all_numbers']) {
+					foreach ($result['head'] as $k) {
+						$v = $row[$k];
+						if (empty($v)) {
+							$r[] = 0;
+						} else {
+							$r[] = 1 * $v;
+						}
+					}
+				} else {
+					foreach ($result['head'] as $k) {
+						$r[] = $row[$k];
+					}
+				}
+				$result['rows'][] = $r;
+			}
+		}
+	}
+
+	return $result;
+}
+
+function sumo_helper_key_cmp($a, $b) {
+	$num = ' _timeslice type _count _sum ';
+	$ai = stripos($num, " $a ") ?: 0;
+	$bi = stripos($num, " $b ") ?: 0;
+	if ($ai == $bi) {
+		return strcasecmp($a, $b);
+	}
+	return ($ai > $bi) ? 1 : -1;
 }
 
 function from_to_time($from) {
@@ -155,7 +227,7 @@ function generate_demo_stats($q, $from, $to, $options) {
 	if ($fromtime >= $totime - $delta) { // 24h ago
 		$delta = 60 * 60; // 1h
 	}
-	print "from='$from'; fromtime=$fromtime; to='$to'; totime='$totime'; delta=$delta;";
+	//print "from='$from'; fromtime=$fromtime; to='$to'; totime='$totime'; delta=$delta;";
 	$i = 0;
 	for ($time = $fromtime; $time <= $totime; $time += $delta) {
 		$i++;

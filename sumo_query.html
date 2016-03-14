@@ -13,11 +13,10 @@
 			'_collector=.......',
 		];
 	</script>
-
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/1.1.1/js/md5.min.js"></script>
-	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" integrity="sha256-MfvZlkHCEqatNoGiOXveE8FIwMzZg4W85qfrfIFBfYc= sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha256-Sk3nkD6mLTMOF0EOpNtsIry+s1CsaqQC1rVLTAy+0yc= sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" >
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" ></script>
 	<link href="style.css" rel="stylesheet">
 	<style>
 	iframe[name="result"] {
@@ -30,10 +29,6 @@
 	}
 	#queryBuilder .sub-group{
 		padding-left:20px;
-	}
-	#rules_rules {
-		height: 100px;
-		vertical-align: top;
 	}
 	[onclick] {
 		cursor: pointer;
@@ -53,22 +48,13 @@
 	</style>
 </head>
 <body>
-<h3 onclick="$('#cp_container').slideToggle()">Create A Tracker</h3>
-<div id="cp_container" style="display:none">
-	<label class="form-group"><span>Tracker name: </span><input id="cp_name" class="form-control" maxlength="10" pattern="^[a-z0-9]+$"> <small>Use short, simple name. No signs, only lowercased abc.</small></label>
-	<label class="form-group"><span>Comma Separated Geos: </span><input id="cp_geos" class="form-control" pattern="^(\b[a-zA-Z][a-zA-Z],?){0,}$" placeholder="us,uk,..."></label>
-	<div id="cp_out">
-	</div>
-</div>
-
-<h3 onclick="$('#q_container').slideToggle()">Query</h3>
 <a href="https://service.eu.sumologic.com/ui/index.html" target="_blank">Login to Sumologic</a>
 <a href="https://service.sumologic.com/help/Getting_Started_Using_Search.htm" target="_blank">Query Starter Guide</a>
 <a href="https://nite-www.sumologic.net/help/Search_Examples_Cheat_Sheet.htm" target="_blank">Query Cheat Sheet</a>
 <datalist id="queries_datalist">
 </datalist>
 
-<div id="q_container" style="display:none">
+<div id="q_container">
 	<form action='./chart.php' method="get" target="result">
 		<label class="form-group"><span>Start Date: </span><input class="form-control" name="from" type="date"></label>
 		<label class="form-group"><span>Query: </span><input class="form-control" name="q" maxlength="2000" list="queries_datalist"></label>
@@ -103,72 +89,6 @@
 	function allOffExcept(elem){
 		$('#queryBuilder .query-selector input[type="checkbox"]:checked').not(elem).prop('checked',false);
 	}
-
-	function rulesRulez(elem){
-		if (elem)
-			allOffExcept(elem);
-		var rules=[];
-		$('#rules_rules').val().split(/\s*\n\s*/).forEach(function(rule_id,i){
-			rules.push('"&a='+rule_id + '&"');
-			if (/\d$/.test(rule_id)){ // has no a nor b
-				rules.push('"&a='+rule_id + 'a&"');
-			}
-		});
-		var q = '_collector=ti " ' + $('#rules_type').val() + '&" AND (' + rules.join(' OR ')+') | timeslice by 1d | parse "&x=*&" as samplerate | sum(samplerate) by _timeslice | sort by _timeslice';
-		$('[name="q"]').val(q);
-	};
-
-	$('[id^="rules_"]').on('click change keyup',function(){
-		if ($('#select_rules:checked').length){
-			rulesRulez();
-		}
-	});
-
-	$('input[id^="cp_"]').on('click change keyup',function(){
-		var sep='-';
-		var url = TRACKER_URL;
-		var types={
-			'imp':'Impression',
-			'clk':'Click',
-			'cnv':'Conversion',
-		};
-		var name=$('#cp_name').val().toLowerCase().replace(/[^a-zA-Z\d]/g,'');
-		if (!name){
-			$('#cp_out').html('');
-			return;
-		}
-		if (name!=$('#cp_name').val()){
-			$('#cp_name').val(name);
-		}
-
-		var samplerate=1;
-		var geos=$('#cp_geos').val();
-		geos=geos.toLowerCase().replace(/^[\s,]*|[\s,]*$|\s/g,'').split(/[\s,]+/).filter(function(v) {return v!=''});
-		// validate all geos
-		var i;
-		$('#cp_geos').removeClass('error');
-		for (i=0;i<geos.length;i++){
-			if (!/^[a-z][a-z]$/.test(geos[i])){
-				$('#cp_geos').addClass('error');
-				$('#cp_out').html('Geos Error');
-				return;
-			}
-		}
-		if (geos.length==0){
-			geos=[''];
-		}
-		var output = '<table class="table"><thead><th>Geo</th><th>Type</th><th>URL</th></thead><tbody>';
-		geos.forEach(function(geo){
-			var first=1
-			Object.keys(types).forEach(function(type){
-				output += '<tr><td'+(first?' class="firstgeo">'+geo:'>')+'</td><td>'+types[type]+'</td><td>'+url+sep+samplerate+sep+name+sep+type+sep+geo+sep+'</td></tr>';
-				first=0
-			})
-		})
-		output +='</tbody></table>';
-
-		$('#cp_out').html(output);
-	});
 
 	function resize(){
 		var $iframe=$('iframe[name="result"]');

@@ -3,6 +3,9 @@
 // See https://github.com/oriadam/sumologic_google_charts //
 ////////////////////////////////////////////////////////////
 error_reporting(E_ERROR | E_WARNING | E_PARSE);
+if (file_exists('chart_include.php')) {
+	include 'chart_include.php';
+}
 require_once "sumologic_api.php";
 if (!empty($GLOBALS['q'])) {
 	$q = $GLOBALS['q'];
@@ -19,132 +22,139 @@ if (!empty($GLOBALS['q'])) {
 <head>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" rel="stylesheet">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
-	<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
-	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css" rel="stylesheet">
 	<link href="style.css" rel="stylesheet" />
 	<script type="text/javascript" src="sumologic_google_chart.js"></script>
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/javascript">
 		google.load("visualization", "1", {packages: ["corechart"]});
-	    //google.load("visualization", "1.1", {packages: ["line"]});
+		//google.load("visualization", "1.1", {packages: ["line"]});
 
 		//google.setOnLoadCallback(drawChart); // when data is loaded, this will be already loaded as well
-		function populateChart(element, result, dataHead) {
-			if (!result.length) {
-				$('#output_chart').html('No data.');
-				return;
-			}
-
-			var chartType = "<?=$_GET['chartType']?>" || 'LineChart';
-			dataHead = dataHead || sl_to_head(result);
-			var data = sl_to_DataTable(result,dataHead);
-
-			var options = <?=$_GET['options'] ?: '{}'?>;
-			options.crosshair = { trigger: "both", focused: { color: '#f88' } };
-			options.interpolateNulls = true; // Whether to guess the value of missing points. If true, it will guess the value of any missing data based on neighboring points. If false, it will leave a break in the line at the unknown point.
-			if (options.pointSize === undefined){
-				options.pointSize = 4;
-			}
-			options.hAxis = options.hAxis || {};
-
-			<?php if (strpos($q, 'timeslice by 1d') !== false) {?>
-			options.hAxis.format = options.hAxis.format || 'MMMd';
-			<?php } elseif (strpos($q, 'timeslice by 1h') !== false) {?>
-				options.hAxis.format = options.hAxis.format || 'MMMd';
-				options.hAxis.gridlines = {
-					units:{
-						days: {format: ['MMM dd']},
-						hours: {format: ['HH:mm', 'ha']},
-					},
-					minorGridlines: {
-						units: {
-							hours: {format: ['hh:mm:ss a', 'ha']},
-							minutes: {format: ['HH:mm a Z', ':mm']}
-						}
-					}
-				};
-			<?php }
+		function populateChart(element, result,chart_options) {
+			if (result.rows && result.rows.length) {
+				var chartType = "<?=$_GET['chartType']?>" || 'LineChart';
+				var data = sl_to_DataTable(result);
+				var defaults = {
+					curveType: 'function',
+					crosshair: { trigger: "both", focused: { color: '#f88' } },
+					interpolateNulls: false, // Whether to guess the value of missing points. If true, it will guess the value of any missing data based on neighboring points. If false, it will leave a break in the line at the unknown point.
+					pointSize: 4,
+					dateFormat: 'YYYY-MM-dd',
+					hAxis:{
+						dateFormat: 'MM-dd',
+				<?php if (strpos($q, '_timeslice') !== false) {?>
+						//format: 'MM-dd',
+				<?php }
 ?>
-
-			var chart = new google.visualization[chartType || 'ColumnChart'](element);
-			chart.draw(data, options);
+					},
+					vAxis:{
+						dateFormat: 'MM-dd',
+						//format: 'MM-dd',
+					},
+				};
+				var options = Object.assign(defaults,chart_options||{});
+				var chart = new google.visualization[chartType || 'ColumnChart'](element);
+				chart.draw(data, options);
+			}
 		}
 	</script>
 
 	<style>
-		#output_raw {
-			white-space: pre;
-		}
 		[onclick]{
 			cursor: pointer;
 		}
+		#output_query,#output_chart,#output_error,#output_json {
+			width:calc(100% - 130px);
+		}
+
+		#output_query{
+			width:calc(100% - 130px);
+			height:30px;
+			border:1px solid gray;
+		}
+		#output_json {
+			font-family: monospace;
+			white-space: pre;
+			border:1px solid gray;
+		}
+		#output_table {
+
+		}
+		#output_chart {
+
+		}
 	</style>
+	<?=$GLOBALS['in_head'] ?: ''?>
 </head>
 
 <body onload="$('#wait').html('INTERNAL ERROR')">
 	<div id="wait">
 		<i class="wait_spinner"></i> Loading chart...
 	</div>
-	<!-- CHART -->
+	<div id="output_error"></div>
 	<div id="output_chart"></div>
-	<!-- TABLE -->
-	<div id="table_data"></div>
-	<!-- CSV -->
+	<div id="output_table"></div>
 	<form id="csv_form" action="csv.php?filename=report <?=date('Y-m-d', from_to_time($_GET['from']))?> to <?=date('Y-m-d', from_to_time($_GET['to'] ?: 'now'))?>.csv" method="POST" target="_blank">
 	<input id="csv_data" type="hidden" name="data">
 	<input type="submit" class="btn btn-link" value="Download CSV"/>
+	<!--span class="btn btn-link" onclick="$('#output_chart').toggle()">Show Chart</span-->
+	<span class="btn btn-link btn-xs" onclick="$('#output_query').toggle()">Show Query</span>
+	<span class="btn btn-link btn-xs" onclick="$('#output_json').toggle()">Show JSON</span>
+	<textarea id="output_query"><?=$q?></textarea>
 	</form>
-
-	<!-- Query
-	<?=$q?>
-	-->
-
-<?php
-if (!empty($_GET['show_raw'])) {
-	?>
-	<span onclick="$('#output_raw').toggle()">Show raw response</span>
-	<div id="output_raw" style="display:none"></div>
-<?php }
-?>
-	<script>
 <?php
 $options = [];
-$avail_options = ['collector', 'timeslice', 'timeout', 'timeZone', 'ch_options', 'show_query', 'show_raw', 'show_ch'];
+$avail_options = ['collector', 'timeslice', 'timeout', 'tz', 'ch_options', 'show_query', 'show_raw', 'show_ch', 'all_numbers'];
 foreach ($avail_options as $k) {
 	if (!empty($_GET[$k])) {
 		$options[$k] = $_GET[$k];
 	}
 }
-if (time() - from_to_time($_GET['from']) <= 24 * 60 * 60) {
-	$q = str_replace('timeslice 1d', 'timeslice 1h', $q);
-}
 if ($publisher_status == DEMO_STATUS) {
 	$result = generate_demo_stats($q, $_GET['from'], $_GET['to'] ?: 0, $options);
 } else {
-	$result = sumologic_api($q, $_GET['from'], $_GET['to'] ?: 0, $options);
+	$result = sumologic_search_api($q, $_GET['from'], $_GET['to'] ?: 0, $options);
 }
-print "result=" . json_encode($result, JSON_PRETTY_PRINT) . ';';
+print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</div>';
+
 ?>
-	$('#output_raw').html(JSON.stringify(result));
+<script>
+	var result=JSON.parse($('#output_json').html());
 	if (result.error){
-		$('#output_chart').html('ERROR:'+result.error);
-		$('#output_chart').html($('#output_chart').html());
-	} else if (!result.length) {
-		$('#output_chart').html('Empty result.');
+		$('#output_error').html('ERROR:'+result.error);
+	} else if (!result.rows || !result.rows.length) {
+		$('#output_error').html('Empty result.');
+		$('#output_json,#output_query,#output_chart').hide().off();
 	}else {
-		var dataHead = sl_to_head(result);
-		populateChart(document.querySelector('#output_chart'),result,dataHead);
-		$('#table_data').html(sl_to_html_table(result,dataHead));
-		$('#csv_data').val(sl_to_csv(result,dataHead));
+		$('#output_error').hide();
+		sl_prepare(result);
+		$('#output_table').html(sl_to_html_table(result,true));
 	}
+
+	// Download CSV
+	$('#csv_form').on('submit',function(){
+		$('#csv_data').val(sl_to_csv(result));
+	});
+
+	// Show Chart
+	function prepareChart(){
+		if (!window.prepareChartRunOnce){
+			window.prepareChartRunOnce=1;
+			populateChart(document.querySelector('#output_chart'),result);
+		}
+	}
+	$('#output_chart').show();
+	prepareChart();
+
+	$('#output_json,#output_query').hide().off();
 	$('#wait').remove();
 	$('body').attr('onload',null)
-
-
-	</script>
+</script>
 </body>
 
 </html>
