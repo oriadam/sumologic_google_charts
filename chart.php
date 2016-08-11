@@ -22,11 +22,14 @@ if (!empty($GLOBALS['q'])) {
 <head>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
-	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
-	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+	<!--script src="https://code.jquery.com/jquery-migrate-3.0.0.js"></script-->
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.0/jquery-ui.min.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.0/jquery-ui.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.0/themes/smoothness/jquery-ui.min.css">
 	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css" rel="stylesheet">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
 	<link href="style.css" rel="stylesheet" />
 	<script type="text/javascript" src="sumologic_google_chart.js"></script>
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
@@ -40,6 +43,8 @@ if (!empty($GLOBALS['q'])) {
 				var chartType = "<?=$_GET['chartType']?>" || 'LineChart';
 				var data = sl_to_DataTable(result);
 				var defaults = {
+					width:'100%',
+					height:'350px',
 					curveType: 'function',
 					crosshair: { trigger: "both", focused: { color: '#f88' } },
 					interpolateNulls: false, // Whether to guess the value of missing points. If true, it will guess the value of any missing data based on neighboring points. If false, it will leave a break in the line at the unknown point.
@@ -99,14 +104,17 @@ if (!empty($GLOBALS['q'])) {
 	<div id="output_error"></div>
 	<div id="output_chart"></div>
 	<div id="output_table"></div>
-	<form id="csv_form" action="csv.php?filename=report <?=date('Y-m-d', from_to_time($_GET['from']))?> to <?=date('Y-m-d', from_to_time($_GET['to'] ?: 'now'))?>.csv" method="POST" target="_blank">
-	<input id="csv_data" type="hidden" name="data">
-	<input type="submit" class="btn btn-link" value="Download CSV"/>
-	<!--span class="btn btn-link" onclick="$('#output_chart').toggle()">Show Chart</span-->
-	<span class="btn btn-link btn-xs" onclick="$('#output_query').toggle()">Show Query</span>
-	<span class="btn btn-link btn-xs" onclick="$('#output_json').toggle()">Show JSON</span>
-	<textarea id="output_query"><?=$q?></textarea>
-	</form>
+	<div id="tools">
+		<form id="csv_form" action="csv.php?filename=report <?=date('Y-m-d', from_to_time($_GET['from']))?> to <?=date('Y-m-d', from_to_time($_GET['to'] ?: 'now'))?>.csv" method="POST" target="_blank">
+		<input id="csv_data" type="hidden" name="data">
+		<input type="submit" class="btn btn-link" value="Download CSV"/>
+		</form>
+		<!--span class="btn btn-link" onclick="$('#output_chart').toggle()">Show Chart</span-->
+		<span class="btn btn-link btn-xs" onclick="$('#output_query').toggle()">Show Query</span>
+		<span class="btn btn-link btn-xs" onclick="$('#output_json').toggle()">Show JSON</span>
+		<textarea id="output_query"><?=$q?></textarea>
+		<?=$GLOBALS['in_tools'] ?: ''?>
+	</div>
 <?php
 $options = [];
 $avail_options = ['collector', 'timeslice', 'timeout', 'tz', 'ch_options', 'show_query', 'show_raw', 'show_ch', 'all_numbers'];

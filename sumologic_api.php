@@ -153,9 +153,7 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 		foreach ($json[0] as $name => $row) {
 			$result['head'][] = $name;
 		}
-		if (empty(preg_match('@\\|\\s*fields\\b@', $query))) {
-			usort($result['head'], 'sumo_helper_key_cmp');
-		}
+		usort($result['head'], 'sumo_helper_key_cmp');
 
 		foreach ($json as $i => $row) {
 			if (is_numeric($i)) {
@@ -183,13 +181,17 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 }
 
 function sumo_helper_key_cmp($a, $b) {
-	$num = ' _timeslice type _count _sum ';
-	$ai = stripos($num, " $a ") ?: 0;
-	$bi = stripos($num, " $b ") ?: 0;
-	if ($ai == $bi) {
-		return strcasecmp($a, $b);
-	}
-	return ($ai > $bi) ? 1 : -1;
+	if ($a=='_timeslice') return -1;
+	if ($b=='_timeslice') return 1;
+	if ($a=='type') return -1;
+	if ($b=='type') return 1;
+	if ($a=='_count') return -1;
+	if ($b=='_count') return 1;
+	if ($a=='_sum') return -1;
+	if ($b=='_sum') return 1;
+	if ($a[0]=='_' && $b[0]!='_') return -1;
+	if ($b[0]=='_' && $a[0]!='_') return 1;
+	return 0; //strcasecmp($a, $b);
 }
 
 function from_to_time($from) {
