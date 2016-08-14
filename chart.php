@@ -141,7 +141,7 @@ print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</di
 	}else {
 		$('#output_error').hide();
 		sl_prepare(result);
-		$('#output_table').html(sl_to_html_table(result,true));
+		$('#output_table').html(sl_to_html_table(result,result.rows.length>1));
 	}
 
 	// Download CSV
@@ -149,15 +149,20 @@ print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</di
 		$('#csv_data').val(sl_to_csv(result));
 	});
 
-	// Show Chart
-	function prepareChart(){
-		if (!window.prepareChartRunOnce){
-			window.prepareChartRunOnce=1;
-			populateChart(document.querySelector('#output_chart'),result);
+	// Show Chart only when there's data to be displayed
+	if (result.rows.length>1){
+		function prepareChart(){
+			if (!window.prepareChartRunOnce){
+				window.prepareChartRunOnce=1;
+				populateChart(document.querySelector('#output_chart'),result);
+			}
 		}
+		$('#output_chart').show();
+		prepareChart();
+	} else {
+		// Only one row? The table should be enough
+		$('#output_chart').hide();
 	}
-	$('#output_chart').show();
-	prepareChart();
 
 	$('#output_json,#output_query').hide().off();
 	$('#wait').remove();
