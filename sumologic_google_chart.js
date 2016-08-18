@@ -18,6 +18,28 @@ To get Google Charts compatible data:
 
 **************************************************/
 
+GRANULARITY_MILLISECONDS = 24;
+GRANULARITY_SECONDS = 19;
+GRANULARITY_MINUTES = 16;
+GRANULARITY_DAYS = 10;
+
+// convert time number (epoch) to an ISO date string.
+function time_to_date(t, granularity, auto_granularity) {
+	var d = new Date(+t);
+	if (auto_granularity && granularity < GRANULARITY_MILLISECONDS) {
+		granularity = Math.max(granularity, t % 1000 * 60 * 60 * 24 == 0 ? 10 : t % 1000 * 60 == 0 ? 16 : t % 1000 == 0 ? 19 : 24);
+	}
+
+	var s = d.toISOString().substr(0, granularity)
+	if (granularity > GRANULARITY_DAYS) {
+		s = s.replace('T', ' ');
+		if (granularity >= GRANULARITY_MILLISECONDS) {
+			s = s.replace('Z', '');
+		}
+	}
+	return s;
+}
+
 function sl_prepare(result) {
 
 	result.dataTypes = [];
@@ -77,6 +99,8 @@ function sl_to_csv(result) {
 	var endline = "\n";
 	var sep = ",";
 	var output = [];
+	var auto_granularity = !result.granularity;
+	var granularity = result.granularity || GRANULARITY_DAYS;
 
 	// header
 	output.push(result.head.join(sep)
@@ -88,11 +112,14 @@ function sl_to_csv(result) {
 	// data
 	result.rows.forEach(function(r) {
 		result.head.forEach(function(f, i) {
-			if (r[i].length === 13 && /^14\d+$/.test(r[f])) {
-				var d = new Date(+r[f]);
-				output.push(d.toISOString().substr(0, 10), sep);
+			if (r[i].length === 13 && /^14\d+$/.test(r[i])) {
+				var d = time_to_date(r[i], granularity, auto_granularity);
+				if (auto_granularity && d.length > granularity) {
+					granularity = d.length;
+				}
+				output.push(d, sep);
 			} else {
-				output.push(r[f], sep);
+				output.push(r[i], sep);
 			}
 		});
 		output.push(endline);
@@ -104,7 +131,9 @@ function sl_to_html_table(result, summary) {
 	if (result.length < 1) {
 		return 'No Data';
 	}
-	var sum=[];
+	var auto_granularity = !result.granularity;
+	var granularity = result.granularity || GRANULARITY_DAYS;
+	var sum = [];
 	var data = ['<table class="table"><thead><tr>'];
 	result.head.forEach(function(f) {
 		data.push('<th>');
@@ -124,12 +153,15 @@ function sl_to_html_table(result, summary) {
 		result.head.forEach(function(f, i) {
 			data.push('<td>');
 			if (/date/.test(result.dataTypes[i])) {
-				var d = new Date(+r[i]);
-				data.push(d.toISOString().substr(0, 10));
+				var d = time_to_date(r[i], granularity, true);
+				// how much info? depends on how round the time is
+				if (auto_granularity && d.length > granularity)
+					granularity = d.length;
+				data.push(d);
 			} else {
 				data.push(r[i]);
-				if (typeof r[i]=='number'){
-					sum[i]+=r[i];
+				if (typeof r[i] == 'number') {
+					sum[i] += r[i];
 				}
 			}
 			data.push('</td>');
@@ -137,13 +169,13 @@ function sl_to_html_table(result, summary) {
 		data.push('</tr>');
 	});
 	data.push('</tbody>');
-	if (summary){
+	if (summary) {
 		data.push('<tbody>');
-		sum.forEach(function(s,i){
+		sum.forEach(function(s, i) {
 			data.push('<td>');
-			if (!s&&!i){
+			if (!s && !i) {
 				data.push('Total');
-			}else if (s){
+			} else if (s) {
 				data.push(s);
 			}
 			data.push('</td>');

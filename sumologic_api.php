@@ -17,6 +17,11 @@ function sumologic_error($query = null, $error = null, $info = null, $status = n
 	];
 }
 
+define('GRANULARITY_MILLISECONDS', 24);
+define('GRANULARITY_SECONDS', 19);
+define('GRANULARITY_MINUTES', 16);
+define('GRANULARITY_DAYS', 10);
+
 //Run a query and immediately return a result JSON
 // Using the Search API as documented here: https://github.com/SumoLogic/sumo-api-doc/wiki/Search-API
 //	$query - The SL search query to execute
@@ -146,6 +151,15 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 		$result['ch'] = $info;
 		$result['ch_status'] = $status;
 	}
+	if (preg_match('@timeslice\\s+\\dd@', $query)) {
+		$result['granularity'] = GRANULARITY_DAYS;
+	}
+	if (preg_match('@timeslice\\s+\\d[hm]@', $query)) {
+		$result['granularity'] = GRANULARITY_MINUTES;
+	}
+	if (preg_match('@timeslice\\s+\\ds@', $query)) {
+		$result['granularity'] = GRANULARITY_SECONDS;
+	}
 
 	$result['rows'] = array();
 	if (!empty($json[0])) {
@@ -181,17 +195,18 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 }
 
 function sumo_helper_key_cmp($a, $b) {
-	if ($a=='_timeslice') return -1;
-	if ($b=='_timeslice') return 1;
-	if ($a=='type') return -1;
-	if ($b=='type') return 1;
-	if ($a=='_count') return -1;
-	if ($b=='_count') return 1;
-	if ($a=='_sum') return -1;
-	if ($b=='_sum') return 1;
-	if ($a[0]=='_' && $b[0]!='_') return -1;
-	if ($b[0]=='_' && $a[0]!='_') return 1;
-	return 0; //strcasecmp($a, $b);
+	return
+	($a == '_timeslice') ? -1 :
+	($b == '_timeslice') ? 1 :
+	($a == 'type') ? -1 :
+	($b == 'type') ? 1 :
+	($a == '_count') ? -1 :
+	($b == '_count') ? 1 :
+	($a == '_sum') ? -1 :
+	($b == '_sum') ? 1 :
+	($a[0] == '_' && $b[0] != '_') ? -1 :
+	($b[0] == '_' && $a[0] != '_') ? 1 :
+	0; //strcasecmp($a, $b);
 }
 
 function from_to_time($from) {
