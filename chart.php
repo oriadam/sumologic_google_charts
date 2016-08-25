@@ -123,7 +123,7 @@ foreach ($avail_options as $k) {
 		$options[$k] = $_GET[$k];
 	}
 }
-if ($publisher_status == DEMO_STATUS) {
+if (!empty($GLOBALS['chart_demo_data'])) {
 	$result = generate_demo_stats($q, $_GET['from'], $_GET['to'] ?: 0, $options);
 } else {
 	$result = sumologic_search_api($q, $_GET['from'], $_GET['to'] ?: 0, $options);
