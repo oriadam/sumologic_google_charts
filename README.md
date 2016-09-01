@@ -7,3 +7,5 @@ Screenshots:
 ![](/readme/screenshot1.png?raw=true)
 
 ![](/readme/screenshot2.png?raw=true)
+
+![](/readme/screenshot3.jpg?raw=true)
