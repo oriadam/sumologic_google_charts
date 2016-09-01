@@ -18,6 +18,10 @@ if (!empty($GLOBALS['q'])) {
 	}
 	$q = $_GET['q'];
 }
+
+$html_table = !empty($_GET['html_table']);
+$chartType = @$_GET['chartType'];
+
 ?><html lang="en">
 <head>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -32,15 +36,13 @@ if (!empty($GLOBALS['q'])) {
 	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
 	<link href="style.css" rel="stylesheet" />
 	<script type="text/javascript" src="sumologic_google_chart.js"></script>
-	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 	<script type="text/javascript">
-		google.load("visualization", "1", {packages: ["corechart"]});
-		//google.load("visualization", "1.1", {packages: ["line"]});
-
-		//google.setOnLoadCallback(drawChart); // when data is loaded, this will be already loaded as well
+		google.charts.load("current", {packages: ["corechart","table","geochart"]});
 		function populateChart(element, result,chart_options) {
 			if (result.rows && result.rows.length) {
-				var chartType = "<?=$_GET['chartType']?>" || 'LineChart';
+				var chartType = "<?=$chartType?>";
+				if (!chartType) return;
 				var data = sl_to_DataTable(result);
 				var defaults = {
 					width:'100%',
@@ -54,16 +56,20 @@ if (!empty($GLOBALS['q'])) {
 						dateFormat: 'MM-dd',
 				<?php if (strpos($q, '_timeslice') !== false) {?>
 						//format: 'MM-dd',
-				<?php }
-?>
+				<?php } ?>
 					},
 					vAxis:{
 						dateFormat: 'MM-dd',
 						//format: 'MM-dd',
 					},
 				};
-				var options = Object.assign(defaults,chart_options||{});
-				var chart = new google.visualization[chartType || 'ColumnChart'](element);
+				try {
+					var options = Object.assign(defaults,chart_options||{});
+					var chart = new google.visualization[chartType](element);
+				}catch(e){
+					console.error(e);
+					alert('Error with chart configuration! chartType=' + chartType + ' options=' + JSON.stringify(chart_options));
+				}
 				chart.draw(data, options);
 			}
 		}
@@ -87,12 +93,6 @@ if (!empty($GLOBALS['q'])) {
 			white-space: pre;
 			border:1px solid gray;
 		}
-		#output_table {
-
-		}
-		#output_chart {
-
-		}
 	</style>
 	<?=$GLOBALS['in_head'] ?: ''?>
 </head>
@@ -103,7 +103,9 @@ if (!empty($GLOBALS['q'])) {
 	</div>
 	<div id="output_error"></div>
 	<div id="output_chart"></div>
+	<?php if ($html_table) { ?>
 	<div id="output_table"></div>
+	<?php } ?>
 	<div id="tools">
 		<form id="csv_form" action="csv.php?filename=report <?=date('Y-m-d', from_to_time($_GET['from']))?> to <?=date('Y-m-d', from_to_time($_GET['to'] ?: 'now'))?>.csv" method="POST" target="_blank">
 		<input id="csv_data" type="hidden" name="data">
@@ -112,13 +114,13 @@ if (!empty($GLOBALS['q'])) {
 		<!--span class="btn btn-link" onclick="$('#output_chart').toggle()">Show Chart</span-->
 		<span class="btn btn-link btn-xs" onclick="$('#output_query').toggle()">Show Query</span>
 		<span class="btn btn-link btn-xs" onclick="$('#output_json').toggle()">Show JSON</span>
-		<textarea id="output_query"><?=$q?></textarea>
 		<?=$GLOBALS['in_tools'] ?: ''?>
 	</div>
+	<textarea id="output_query"><?=$q?></textarea>
 <?php
 $options = [];
-$avail_options = ['collector', 'timeslice', 'timeout', 'tz', 'ch_options', 'show_query', 'show_raw', 'show_ch', 'all_numbers'];
-foreach ($avail_options as $k) {
+$api_options = ['collector', 'timeslice', 'timeout', 'tz', 'ch_options', 'show_query', 'show_raw', 'show_ch', 'all_numbers'];
+foreach ($api_options as $k) {
 	if (!empty($_GET[$k])) {
 		$options[$k] = $_GET[$k];
 	}
@@ -132,7 +134,12 @@ print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</di
 
 ?>
 <script>
-	var result=JSON.parse($('#output_json').html());
+	var result = JSON.parse($('#output_json').html());
+	result.query = $('#output_query').val();
+
+	if (typeof result_callback == 'function'){
+		result = result_callback(result);
+	}
 	if (result.error){
 		$('#output_error').html('ERROR:'+result.error);
 	} else if (!result.rows || !result.rows.length) {
@@ -141,7 +148,9 @@ print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</di
 	}else {
 		$('#output_error').hide();
 		sl_prepare(result);
+		<?php if ($html_table) { ?>
 		$('#output_table').html(sl_to_html_table(result,result.rows.length>1));
+		<?php } ?>
 	}
 
 	// Download CSV
@@ -149,20 +158,16 @@ print '<div id="output_json">' . json_encode($result, JSON_PRETTY_PRINT) . '</di
 		$('#csv_data').val(sl_to_csv(result));
 	});
 
-	// Show Chart only when there's data to be displayed
-	if (result.rows.length>1){
-		function prepareChart(){
-			if (!window.prepareChartRunOnce){
-				window.prepareChartRunOnce=1;
-				populateChart(document.querySelector('#output_chart'),result);
-			}
+	<?php if ($chartType) { ?>
+	function drawChart(){
+		if (!window.drawChartRunOnce){
+			window.drawChartRunOnce=1;
+			populateChart(document.querySelector('#output_chart'),result);
 		}
-		$('#output_chart').show();
-		prepareChart();
-	} else {
-		// Only one row? The table should be enough
-		$('#output_chart').hide();
 	}
+	$('#output_chart').show();
+	google.charts.setOnLoadCallback(drawChart); // when data is loaded, this will be already loaded as well
+	<?php } ?>
 
 	$('#output_json,#output_query').hide().off();
 	$('#wait').remove();

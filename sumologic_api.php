@@ -17,10 +17,10 @@ function sumologic_error($query = null, $error = null, $info = null, $status = n
 	];
 }
 
-define('GRANULARITY_MILLISECONDS', 24);
-define('GRANULARITY_SECONDS', 19);
-define('GRANULARITY_MINUTES', 16);
-define('GRANULARITY_DAYS', 10);
+define('DATE_GRANULARITY_MILLISECONDS', 24);
+define('DATE_GRANULARITY_SECONDS', 19);
+define('DATE_GRANULARITY_MINUTES', 16);
+define('DATE_GRANULARITY_DAYS', 10);
 
 //Run a query and immediately return a result JSON
 // Using the Search API as documented here: https://github.com/SumoLogic/sumo-api-doc/wiki/Search-API
@@ -90,7 +90,7 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 	curl_setopt($ch, CURLOPT_HEADER, false);
 	curl_setopt($ch, CURLOPT_VERBOSE, false);
 	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
-	curl_setopt($ch, CURLOPT_USERPWD, $GLOBALS['SUMOLOGIC_USER'] . ':' . $GLOBALS['SUMOLOGIC_PASS']);
+	curl_setopt($ch, CURLOPT_USERPWD, $GLOBALS['SUMOLOGIC_API_ID'] . ':' . $GLOBALS['SUMOLOGIC_API_KEY']);
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
 	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 		'Accept: application/json',
@@ -152,14 +152,15 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 		$result['ch_status'] = $status;
 	}
 	if (preg_match('@timeslice\\s+\\dd@', $query)) {
-		$result['granularity'] = GRANULARITY_DAYS;
+		$result['date_granularity'] = DATE_GRANULARITY_DAYS;
 	}
 	if (preg_match('@timeslice\\s+\\d[hm]@', $query)) {
-		$result['granularity'] = GRANULARITY_MINUTES;
+		$result['date_granularity'] = DATE_GRANULARITY_MINUTES;
 	}
 	if (preg_match('@timeslice\\s+\\ds@', $query)) {
-		$result['granularity'] = GRANULARITY_SECONDS;
+		$result['date_granularity'] = DATE_GRANULARITY_SECONDS;
 	}
+
 
 	$result['rows'] = array();
 	if (!empty($json[0])) {
@@ -167,7 +168,6 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 		foreach ($json[0] as $name => $row) {
 			$result['head'][] = $name;
 		}
-		usort($result['head'], 'sumo_helper_key_cmp');
 
 		foreach ($json as $i => $row) {
 			if (is_numeric($i)) {
@@ -192,21 +192,6 @@ function sumologic_search_api($query, $from, $to = 0, $options = []) {
 	}
 
 	return $result;
-}
-
-function sumo_helper_key_cmp($a, $b) {
-	return
-	($a == '_timeslice') ? -1 :
-	($b == '_timeslice') ? 1 :
-	($a == 'type') ? -1 :
-	($b == 'type') ? 1 :
-	($a == '_count') ? -1 :
-	($b == '_count') ? 1 :
-	($a == '_sum') ? -1 :
-	($b == '_sum') ? 1 :
-	($a[0] == '_' && $b[0] != '_') ? -1 :
-	($b[0] == '_' && $a[0] != '_') ? 1 :
-	0; //strcasecmp($a, $b);
 }
 
 function from_to_time($from) {
