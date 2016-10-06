@@ -117,6 +117,7 @@ function sl_to_csv(result) {
 	var output = [];
 	var auto_granularity = !result.date_granularity;
 	var date_granularity = result.date_granularity || DATE_GRANULARITY_DAYS;
+	var idx = result.idx;
 
 	// header
 	output.push(result.head.join(sep)
@@ -127,7 +128,8 @@ function sl_to_csv(result) {
 
 	// data
 	result.rows.forEach(function(r) {
-		result.head.forEach(function(f, i) {
+		result.head.forEach(function(f) {
+			var i = idx[f];
 			if (r[i].length === 13 && /^14\d+$/.test(r[i])) {
 				var d = time_to_date(r[i], date_granularity, auto_granularity);
 				if (auto_granularity && d.length > date_granularity) {

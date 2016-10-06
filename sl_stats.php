@@ -12,6 +12,11 @@ $query_prefix = "$query_field=$id ";
 	<?php include "../head.include.php";?>
 	<link href="/static/api/style.css" rel="stylesheet"/>
 	<style>
+		#min_sum {
+		    width: 70px;
+		    padding-left: 4px;
+    		padding-right: 4px;
+		}
 		#wait {
 			position: fixed;
 			top:20%;
@@ -44,7 +49,7 @@ $query_prefix = "$query_field=$id ";
 			width:auto;
 		}
 		iframe[name="result"] {
-			width:90%;
+			width:calc(100% - 25px);
 			height:calc(100% - 60px);
 			border:1px solid #ddd;
 		}
@@ -62,7 +67,7 @@ $query_prefix = "$query_field=$id ";
 			line-height: 12px;
 		}
 	</style>
-	<script src="sl_queries.js?v=33a"></script>
+	<script src="sl_queries.js?v=35"></script>
 	<script>
 
 		function copy_to_clipboard(value, onsuccess, onfail) {
@@ -115,6 +120,10 @@ $query_prefix = "$query_field=$id ";
 				$q.empty();
 				Object.keys(sl_queries).forEach(function(k){
 					var query = "<?=$query_prefix?>" + sl_queries[k].replace(/\b1d\b/g,$('#timeslice').val());
+					var min_sum = $('#min_sum').val();
+					if (min_sum && /sum\(/.test(query)){
+						query = query.replace(/(\|\s*transpose[^|]*|$)/,' | where _sum >' + min_sum + ' $1');
+					}
 					query = optimize_sumo_query(query,$('#from').val(),$('#to').val());
 					var option = $('<option>').val(query).html(k);
 					$q.append(option);
@@ -122,7 +131,7 @@ $query_prefix = "$query_field=$id ";
 				$q[0].selectedIndex = selectedIndex;
 			}
 			populate_queries();
-			$('#timeslice,#from,#to').change(populate_queries);
+			$('#timeslice,#from,#to,#min_sum').change(populate_queries);
 		</script>
 
 		<div id="chart_types" class="btn-group" role="group">
@@ -133,9 +142,11 @@ $query_prefix = "$query_field=$id ";
 			<button type="button" class="btn btn-default btn-s" val="GeoChart"    title="World Map"   ><i class="fa fa-globe"      ></i></button>
 		</div>
 
+		Filter by min value of <input id="min_sum" type="number" value="" class="form-control">
+
 		<a id="go" target="result" class="btn btn-primary btn-s">Go</a>
 
-		<span id="copy" class="btn btn-default btn-s" title="Copy query for sumologic website"></span>
+		<span id="copy" class="btn btn-default btn-s adoptOnly" title="Copy query for sumologic website"></span>
 	</div>
 
 	<iframe id="frm" name="result"></iframe>
@@ -145,7 +156,7 @@ $query_prefix = "$query_field=$id ";
 		</div>
 		<div>
 			<h3>Loading data...</h3>
-	 		Queries of more than 3 days or per hour may take longer to complete
+	 		Some queries may take longer to complete
 		</div>
 	 </div>
 

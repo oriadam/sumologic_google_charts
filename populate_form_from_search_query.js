@@ -18,5 +18,3 @@ datefields.forEach(function(k){
 		elem.value=d.toISOString().replace(/T.*/,'');
 	}
 });
-
-	
