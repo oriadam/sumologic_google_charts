@@ -71,7 +71,7 @@ $query_prefix = "$query_field=$id ";
 	<script>
 
 		function copy_to_clipboard(value, onsuccess, onfail) {
-			var elem = $('<input>').val(value).appendTo('body').select();
+			var elem = $('<textarea>').val(value).appendTo('body').select();
 			try {
 				var success = document.execCommand('copy');
 				if (success) {
